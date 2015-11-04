@@ -2,6 +2,7 @@
     var factory = function ($, PublicaMundi) {
         "use strict";
 
+        // Create namespaces
         if(typeof PublicaMundi.Data === 'undefined') {
                 PublicaMundi.Data = {
                 __namespace: 'PublicaMundi.Data'
@@ -14,6 +15,7 @@
             };
         }
 
+        // Create constants
         PublicaMundi.Data.CRS.Google = 'EPSG:900913';
         PublicaMundi.Data.CRS.Mercator = 'EPSG:3857';
         PublicaMundi.Data.CRS.WGS84 = 'EPSG:4326';
@@ -41,12 +43,43 @@
             GREATER_OR_EQUAL: 'GREATER_OR_EQUAL',
             LESS: 'LESS',
             LESS_OR_EQUAL: 'LESS_OR_EQUAL',
+            LIKE: 'LIKE',
             AREA: 'AREA',
             DISTANCE: 'DISTANCE',
             CONTAINS: 'CONTAINS',
             INTERSECTS: 'INTERSECTS'
         };
 
+        // Data API configuration
+        var configuration = {
+            debug: false,
+            proxy: null,
+            endpoint: null
+        };
+
+        PublicaMundi.Data.configure = function(options) {
+            extend(configuration, options);
+        };
+
+        PublicaMundi.Data.getConfiguration = function() {
+            return clone(configuration);
+        };
+
+        // Exceptions
+        PublicaMundi.Data.SyntaxException = function (message) {
+            this.name = 'PublicaMundi.Data.SyntaxException';
+            this.message = message;
+        };
+
+        PublicaMundi.Data.SyntaxException.prototype = new Error();
+
+        PublicaMundi.Data.SyntaxException.prototype.constructor = PublicaMundi.Data.SyntaxException;
+
+        PublicaMundi.Data.SyntaxException.prototype.toString = function () {
+            return this.name + ": " + this.message;
+        };
+
+        // Helper methods
         function clone(obj) {
             var target = {};
             for (var prop in obj) {
@@ -61,10 +94,38 @@
             return target;
         }
 
-        function getArgumentField(arg, index) {
+        var extend = function (target, source) {
+            if(!target) {
+                return;
+            }
+
+            if (source) {
+                for (var property in source) {
+                    if (source.hasOwnProperty(property)) {
+                        if((typeof source[property] === 'object') && (source[property])) {
+                            if(typeof target[property] !== 'object') {
+                                target[property] = {};
+                            }
+                            extend(target[property], source[property]);
+                        } else {
+                            target[property] = source[property];
+                        }
+                    }
+                }
+            }
+            return target;
+        };
+
+        function getResourceFromAlias(name) {
+            if((name) && (configuration.alias) && (configuration.alias.hasOwnProperty(name))) {
+                return configuration.alias[name];
+            }
+            return name;
+        };
+
+        function getArgument(arg, index) {
             switch (typeof arg) {
                 case 'object':
-                    // Check for field name
                     var obj = {
                         name: ''
                     };
@@ -84,6 +145,30 @@
             }
         }
 
+        function getArgumentField(arg, index) {
+            switch (typeof arg) {
+                case 'object':
+                    var obj = {
+                        name: ''
+                    };
+                    if (arg.hasOwnProperty('name')) {
+                        obj.name = arg.name;
+                    } else {
+                        throw new PublicaMundi.Data.SyntaxException('Name of argument ' + index + ' is missing.');
+                    }
+                    if (arg.hasOwnProperty('resource')) {
+                        obj.resource = getResourceFromAlias(arg.resource);
+                    }
+                    return obj;
+                case 'string':
+                    var obj = {
+                        name: arg
+                    };
+                default:
+                    throw new PublicaMundi.Data.SyntaxException('Type of argument ' + index + ' is invalid.');
+            }
+        }
+
         function getArgumentNumber(arg, index) {
             if (isNaN(arg)) {
                 throw new PublicaMundi.Data.SyntaxException('Type of argument ' + index + ' is invalid. Numeric value is expected.');
@@ -91,12 +176,13 @@
             return arg;
         }
 
-        function getResourceFromAlias(name) {
-            if((name) && (configuration.alias) && (configuration.alias.hasOwnProperty(name))) {
-                return configuration.alias[name];
+        function getArgumentLiteral(arg, index) {
+            if(typeof arg === 'string') {
+                return arg;
             }
-            return name;
-        };
+
+            return arg.toString();
+        }
 
         function getArgumentGeometry(arg, index) {
             if (typeof arg === 'object') {
@@ -121,55 +207,14 @@
             throw new PublicaMundi.Data.SyntaxException('Type of argument ' + index + ' is invalid.');
         }
 
-        PublicaMundi.Data.SyntaxException = function (message) {
-            this.name = 'PublicaMundi.Data.SyntaxException';
-            this.message = message;
-        };
-
-        PublicaMundi.Data.SyntaxException.prototype = new Error();
-
-        PublicaMundi.Data.SyntaxException.prototype.constructor = PublicaMundi.Data.SyntaxException;
-
-        PublicaMundi.Data.SyntaxException.prototype.toString = function () {
-            return this.name + ": " + this.message;
-        };
-
-        var configuration = {
-            debug: false,
-            proxy: null,
-            endpoint: null
-        };
-
-        var extend = function (target, source) {
-            if(!target) {
-                return;
+        function isField(arg) {
+            if ((typeof arg === 'object') && (arg.hasOwnProperty('name'))) {
+                return true;
             }
+            return false;
+        }
 
-            if (source) {
-                for (var property in source) {
-                    if (source.hasOwnProperty(property)) {
-                        if((typeof source[property] === 'object') && (source[property])) {
-                            if(typeof target[property] !== 'object') {
-                                target[property] = {};
-                            }
-                            extend(target[property], source[property]);
-                        } else {
-                            target[property] = source[property];
-                        }
-                    }
-                }
-            }
-            return target;
-        };
-
-        PublicaMundi.Data.configure = function(options) {
-            extend(configuration, options);
-        };
-
-        PublicaMundi.Data.getConfiguration = function() {
-            return clone(configuration);
-        };
-
+        // Public Data API methods
         PublicaMundi.Data.Query = function (endpoint) {
             if (typeof endpoint === 'string') {
                 this.endpoint = endpoint;
@@ -316,8 +361,8 @@
             var filter = {
                 operator: operators.EQUAL,
                 arguments: [
-                    getArgumentField(arg1, 1, false),
-                    getArgumentField(arg2, 2, false)
+                    getArgument(arg1, 1),
+                    getArgument(arg2, 2)
                 ]
             };
             this.query.filters.push(filter);
@@ -328,8 +373,8 @@
             var filter = {
                 operator: operators.NOT_EQUAL,
                 arguments: [
-                    getArgumentField(arg1, 1, false),
-                    getArgumentField(arg2, 2, false)
+                    getArgument(arg1, 1),
+                    getArgument(arg2, 2)
                 ]
             };
             this.query.filters.push(filter);
@@ -340,8 +385,8 @@
             var filter = {
                 operator: operators.LESS,
                 arguments: [
-                    getArgumentField(arg1, 1, false),
-                    getArgumentField(arg2, 2, false)
+                    getArgument(arg1, 1),
+                    getArgument(arg2, 2)
                 ]
             };
             this.query.filters.push(filter);
@@ -352,8 +397,8 @@
             var filter = {
                 operator: operators.LESS_OR_EQUAL,
                 arguments: [
-                    getArgumentField(arg1, 1, false),
-                    getArgumentField(arg2, 2, false)
+                    getArgument(arg1, 1),
+                    getArgument(arg2, 2)
                 ]
             };
             this.query.filters.push(filter);
@@ -364,8 +409,8 @@
             var filter = {
                 operator: operators.GREATER,
                 arguments: [
-                    getArgumentField(arg1, 1, false),
-                    getArgumentField(arg2, 2, false)
+                    getArgument(arg1, 1),
+                    getArgument(arg2, 2)
                 ]
             };
             this.query.filters.push(filter);
@@ -376,8 +421,63 @@
             var filter = {
                 operator: operators.GREATER_OR_EQUAL,
                 arguments: [
-                    getArgumentField(arg1, 1, false),
-                    getArgumentField(arg2, 2, false)
+                    getArgument(arg1, 1),
+                    getArgument(arg2, 2)
+                ]
+            };
+            this.query.filters.push(filter);
+            return this;
+        };
+
+        PublicaMundi.Data.Query.prototype.like = function (arg1, arg2) {
+            var filter;
+
+            var field1 = getArgument(arg1, 1);
+            var field2 = getArgument(arg2, 2);
+
+            if((isField(field1) && isField(field2))) {
+                throw new PublicaMundi.Data.SyntaxException('Operator ' + operators.LIKE + ' requires exactly one field and one literal argument.');
+            }
+
+            if((!isField(field1) && !isField(field2))) {
+                //Assumes that the first argument is a field. Server will check if an actual field exists
+                filter = {
+                    operator: operators.LIKE,
+                    arguments: [
+                        getArgumentField(arg1, 1),
+                        getArgumentLiteral(arg2, 2)
+                    ]
+                };
+            } else if(isField(field1)) {
+                filter = {
+                    operator: operators.LIKE,
+                    arguments: [
+                        getArgument(arg1, 1),
+                        getArgumentLiteral(arg2, 2)
+                    ]
+                };
+            } else {
+                filter = {
+                    operator: operators.LIKE,
+                    arguments: [
+                        getArgument(arg2, 2),
+                        getArgumentLiteral(arg1, 1)
+                    ]
+                };
+            }
+
+            this.query.filters.push(filter);
+            return this;
+        };
+
+        PublicaMundi.Data.Query.prototype.distanceEqual = function (arg1, arg2, arg3) {
+            var filter = {
+                operator: operators.DISTANCE,
+                arguments: [
+                    getArgumentGeometry(arg1),
+                    getArgumentGeometry(arg2),
+                    operators.EQUAL,
+                    getArgumentNumber(arg3)
                 ]
             };
             this.query.filters.push(filter);
@@ -434,6 +534,19 @@
                     getArgumentGeometry(arg2),
                     operators.GREATER,
                     getArgumentNumber(arg3)
+                ]
+            };
+            this.query.filters.push(filter);
+            return this;
+        };
+
+        PublicaMundi.Data.Query.prototype.areaEqual = function (arg1, arg2) {
+            var filter = {
+                operator: operators.AREA,
+                arguments: [
+                    getArgumentGeometry(arg1),
+                    operators.EQUAL,
+                    getArgumentNumber(arg2)
                 ]
             };
             this.query.filters.push(filter);
