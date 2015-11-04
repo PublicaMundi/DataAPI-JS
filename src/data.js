@@ -185,26 +185,32 @@
         }
 
         function getArgumentGeometry(arg, index) {
-            if (typeof arg === 'object') {
-                // Check for geometry expressed in GeoJSON
-                if ((arg.hasOwnProperty('coordinates')) && (arg.hasOwnProperty('type'))) {
-                    return arg;
-                }
-                // Check for field name
-                var obj = {
-                    name: ''
-                };
-                if (arg.hasOwnProperty('name')) {
-                    obj.name = arg.name;
-                } else {
-                    throw new PublicaMundi.Data.SyntaxException('Name of argument ' + index + ' is missing.');
-                }
-                if (arg.hasOwnProperty('resource')) {
-                    obj.resource = getResourceFromAlias(arg.resource);
-                }
-                return obj;
+            switch (typeof arg) {
+                case 'object':
+                    // Check for geometry expressed in GeoJSON
+                    if ((arg.hasOwnProperty('coordinates')) && (arg.hasOwnProperty('type'))) {
+                        return arg;
+                    }
+                    // Check for field name
+                    var obj = {
+                        name: ''
+                    };
+                    if (arg.hasOwnProperty('name')) {
+                        obj.name = arg.name;
+                    } else {
+                        throw new PublicaMundi.Data.SyntaxException('Name of argument ' + index + ' is missing.');
+                    }
+                    if (arg.hasOwnProperty('resource')) {
+                        obj.resource = getResourceFromAlias(arg.resource);
+                    }
+                    return obj;
+                case 'string':
+                    return {
+                        name: arg
+                    };
+                default:
+                    throw new PublicaMundi.Data.SyntaxException('Type of argument ' + index + ' is invalid.');    
             }
-            throw new PublicaMundi.Data.SyntaxException('Type of argument ' + index + ' is invalid.');
         }
 
         function isField(arg) {
@@ -354,6 +360,32 @@
                     this.query.fields.push(obj);
                     break;
             }
+            return this;
+        };
+
+        PublicaMundi.Data.Query.prototype.area = function (arg1, alias) {
+            var field = {
+                operator: operators.AREA,
+                arguments: [
+                    getArgumentGeometry(arg1)
+                ],
+                alias: (alias ? alias : '')
+            };
+
+            this.query.fields.push(field);
+            return this;
+        };
+
+        PublicaMundi.Data.Query.prototype.distance = function (arg1, arg2, alias) {
+            var field = {
+                operator: operators.DISTANCE,
+                arguments: [
+                    getArgumentGeometry(arg1),
+                    getArgumentGeometry(arg2)
+                ],
+                alias: (alias ? alias : '')
+            };
+            this.query.fields.push(field);
             return this;
         };
 
