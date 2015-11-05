@@ -161,7 +161,7 @@
                     }
                     return obj;
                 case 'string':
-                    var obj = {
+                    return obj = {
                         name: arg
                     };
                 default:
@@ -209,7 +209,7 @@
                         name: arg
                     };
                 default:
-                    throw new PublicaMundi.Data.SyntaxException('Type of argument ' + index + ' is invalid.');    
+                    throw new PublicaMundi.Data.SyntaxException('Type of argument ' + index + ' is invalid.');
             }
         }
 
@@ -227,9 +227,7 @@
             } else {
                 this.endpoint = configuration.endpoint;
             }
-            if(!this.endpoint) {
-                throw new PublicaMundi.Data.SyntaxException('Service endpoint is not set.');
-            }
+            this.endpoint = this.endpoint || '';
 
             this.callbacks = {
                 success : null,
@@ -998,10 +996,10 @@
         return PublicaMundi;
     }
 
-    if((define) && (define.amd)) {
+    if((typeof define != 'undefined') && (define.amd)) {
         define(['jquery', 'shared'], factory);
     } else {
-        if(!PublicaMundi) {
+        if(typeof PublicaMundi === 'undefined') {
             PublicaMundi = {
                 __namespace: 'PublicaMundi'
             };
