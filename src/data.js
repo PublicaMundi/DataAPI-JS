@@ -1,19 +1,23 @@
 (function() {
-    var factory = function ($, PublicaMundi) {
+    var factory = function ($, global) {
         "use strict";
 
         // Create namespaces
-        if(typeof PublicaMundi.Data === 'undefined') {
-                PublicaMundi.Data = {
-                __namespace: 'PublicaMundi.Data'
+        var PublicaMundi = global;
+
+        if(typeof PublicaMundi === 'undefined') {
+            PublicaMundi = {
+                __namespace: 'PublicaMundi'
             };
         }
 
-        if(typeof PublicaMundi.Data.CRS === 'undefined') {
-                PublicaMundi.Data.CRS = {
-                __namespace: 'PublicaMundi.Data.CRS'
-            };
-        }
+        PublicaMundi.Data = {
+            __namespace: 'PublicaMundi.Data'
+        };
+
+        PublicaMundi.Data.CRS = {
+            __namespace: 'PublicaMundi.Data.CRS'
+        };
 
         // Create constants
         PublicaMundi.Data.CRS.Google = 'EPSG:900913';
@@ -994,10 +998,10 @@
         };
 
         return PublicaMundi;
-    }
+    };
 
     if((typeof define != 'undefined') && (define.amd)) {
-        define(['jquery', 'shared'], factory);
+        define(['jquery'], factory);
     } else {
         if(typeof PublicaMundi === 'undefined') {
             PublicaMundi = {
