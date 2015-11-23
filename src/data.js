@@ -1241,7 +1241,7 @@
         };
 
         /**
-         * Executes a query and
+         * Executes a query and exports data.
          * @function
          * @param {Object} options Execution options
          * @param {string} [options.success] Success {@link module:PublicaMundi.Data.Query~setSuccessCallback callback}.
